@@ -1,5 +1,5 @@
 
-name: Viral Content Autopilot
+name: Facebook Content Autopilot
 
 on:
   workflow_dispatch:
@@ -16,10 +16,11 @@ on:
           - "4"
           - "5"
       publish:
-        description: "Publish to social media"
+        description: "Publish to Facebook"
         required: true
         default: false
         type: boolean
+
   schedule:
     - cron: "30 2 * * *"
     - cron: "30 5 * * *"
@@ -30,6 +31,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,23 +44,37 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate and publish
+      - name: Generate and publish Facebook post
         env:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
-          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
+          META_GRAPH_VERSION: "v27.0"
         run: |
-          SLOT="${{ inputs.slot || '1' }}"
-          if [ "${{ inputs.publish }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            HOUR=$(date -u +%H)
+
+            case "$HOUR" in
+              02) SLOT=1 ;;
+              05) SLOT=2 ;;
+              08) SLOT=3 ;;
+              11) SLOT=4 ;;
+              14) SLOT=5 ;;
+              *) echo "Unknown schedule hour"; exit 1 ;;
+            esac
+
+            echo "Scheduled Facebook publishing: slot $SLOT"
             python main.py --slot "$SLOT"
+
+          elif [ "${{ inputs.publish }}" = "true" ]; then
+            python main.py --slot "${{ inputs.slot }}"
+
           else
-            python main.py --slot "$SLOT" --dry-run
+            python main.py --slot "${{ inputs.slot }}" --dry-run
           fi
 
       - name: Upload generated image
         uses: actions/upload-artifact@v4
         with:
-          name: generated-image
+          name: facebook-generated-image
           path: output/
           if-no-files-found: warn
