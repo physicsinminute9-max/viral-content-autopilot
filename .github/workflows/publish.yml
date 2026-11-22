@@ -1,0 +1,64 @@
+
+name: Viral Content Autopilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Post slot (1-5)"
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+      publish:
+        description: "Publish to social media"
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: "30 2 * * *"
+    - cron: "30 5 * * *"
+    - cron: "30 8 * * *"
+    - cron: "30 11 * * *"
+    - cron: "30 14 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate and publish
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
+        run: |
+          SLOT="${{ inputs.slot || '1' }}"
+          if [ "${{ inputs.publish }}" = "true" ]; then
+            python main.py --slot "$SLOT"
+          else
+            python main.py --slot "$SLOT" --dry-run
+          fi
+
+      - name: Upload generated image
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-image
+          path: output/
+          if-no-files-found: warn
